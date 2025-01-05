@@ -1,0 +1,23 @@
+import { supabase } from "@/integrations/supabase/client";
+
+export const setupWebSocketConnection = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  // Use the correct WebSocket URL with the project ID and functions/v1 path
+  const ws = new WebSocket(`wss://florxlmkxjzferdcavht.functions.supabase.co/functions/v1/realtime-chat`);
+  
+  ws.onopen = () => {
+    console.log('Connected to chat server');
+  };
+
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+
+  ws.onclose = (event) => {
+    console.log('Disconnected from chat server:', event.code, event.reason);
+  };
+
+  return ws;
+};
