@@ -1,18 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Send, Mic, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AudioRecorder, encodeAudioForAPI } from "@/lib/audio";
-
-interface Message {
-  id: number;
-  content: string;
-  sender: "user" | "ai";
-  timestamp: Date;
-}
+import MessageList from "./chat/MessageList";
+import MessageInput from "./chat/MessageInput";
+import { Message } from "@/types/chat";
 
 class AudioQueue {
   private queue: Uint8Array[] = [];
@@ -73,6 +64,7 @@ const ChatInterface = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
+    // Use the correct WebSocket URL with the project ID
     const ws = new WebSocket(`wss://florxlmkxjzferdcavht.functions.supabase.co/realtime-chat`);
     wsRef.current = ws;
 
@@ -140,26 +132,28 @@ const ChatInterface = () => {
       setIsRecording(true);
       setCurrentTranscript("");
 
-      // Send session configuration
-      ws.send(JSON.stringify({
-        type: 'session.update',
-        session: {
-          modalities: ["text", "audio"],
-          instructions: "You are a helpful AI assistant. Your responses should be clear and concise.",
-          voice: "alloy",
-          input_audio_format: "pcm16",
-          output_audio_format: "pcm16",
-          input_audio_transcription: {
-            model: "whisper-1"
-          },
-          turn_detection: {
-            type: "server_vad",
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 1000
+      // Send session configuration after connection is established
+      ws.addEventListener('open', () => {
+        ws.send(JSON.stringify({
+          type: 'session.update',
+          session: {
+            modalities: ["text", "audio"],
+            instructions: "You are a helpful AI assistant. Your responses should be clear and concise.",
+            voice: "alloy",
+            input_audio_format: "pcm16",
+            output_audio_format: "pcm16",
+            input_audio_transcription: {
+              model: "whisper-1"
+            },
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1000
+            }
           }
-        }
-      }));
+        }));
+      });
     } catch (error) {
       console.error('Error starting recording:', error);
     }
@@ -194,76 +188,16 @@ const ChatInterface = () => {
         <h1 className="text-2xl font-bold">Chat with AI Tutor</h1>
       </div>
       
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.sender === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`flex gap-3 max-w-[80%] ${
-                  message.sender === "user" ? "flex-row-reverse" : "flex-row"
-                }`}
-              >
-                <Avatar className="h-8 w-8">
-                  <div className={`h-full w-full flex items-center justify-center ${
-                    message.sender === "user" ? "bg-primary" : "bg-secondary"
-                  }`}>
-                    {message.sender === "user" ? "U" : "AI"}
-                  </div>
-                </Avatar>
-                <div
-                  className={`rounded-lg p-4 ${
-                    message.sender === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                  <span className="text-xs opacity-70 mt-2 block">
-                    {message.timestamp.toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-          {currentTranscript && (
-            <div className="flex justify-end">
-              <div className="bg-muted rounded-lg p-4 max-w-[80%]">
-                <p className="italic">{currentTranscript}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+      <MessageList messages={messages} currentTranscript={currentTranscript} />
       
-      <div className="p-4 border-t mt-auto">
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-          />
-          <Button onClick={handleSendMessage}>
-            <Send className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={isRecording ? "destructive" : "default"}
-            onClick={isRecording ? stopRecording : startRecording}
-          >
-            {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
-        </div>
-      </div>
+      <MessageInput
+        newMessage={newMessage}
+        setNewMessage={setNewMessage}
+        handleSendMessage={handleSendMessage}
+        isRecording={isRecording}
+        startRecording={startRecording}
+        stopRecording={stopRecording}
+      />
     </div>
   );
 };
