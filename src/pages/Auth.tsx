@@ -8,27 +8,30 @@ import { AuthError, AuthApiError } from "@supabase/supabase-js";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const getErrorMessage = (error: AuthError) => {
-  if (error instanceof AuthApiError) {
-    switch (error.status) {
-      case 400:
-        switch (error.code) {
-          case 'invalid_credentials':
-            return 'Invalid email or password. Please check your credentials and try again.';
-          case 'email_not_confirmed':
-            return 'Please verify your email address before signing in.';
-          default:
-            return error.message;
-        }
+  if (AuthApiError.isAuthApiError(error)) {
+    // Handle API errors using error.code
+    switch (error.code) {
+      case 'invalid_credentials':
+        return 'Invalid email or password. Please check your credentials and try again.';
+      case 'email_not_confirmed':
+        return 'Please verify your email address before signing in.';
+      case 'user_not_found':
+        return 'No user found with these credentials.';
+      case 'invalid_grant':
+        return 'Invalid login credentials.';
       default:
-        return 'An error occurred during authentication. Please try again.';
+        return error.message;
     }
   }
-  // Handle client-side auth errors
+  
+  // Handle client-side auth errors using error.name
   switch (error.name) {
     case 'AuthSessionMissingError':
       return 'No active session found. Please sign in.';
     case 'AuthInvalidCredentialsError':
       return 'Invalid credentials provided.';
+    case 'AuthRetryableFetchError':
+      return 'Network error. Please check your connection and try again.';
     default:
       return error.message;
   }
@@ -56,6 +59,17 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const handleSignIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErrorMessage(getErrorMessage(error));
+    }
+  };
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
