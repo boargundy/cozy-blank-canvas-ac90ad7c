@@ -1,7 +1,14 @@
+/// <reference lib="deno.ns" />
+/// <reference lib="deno.unstable" />
+/// <reference types="./deno.d.ts" />
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import "https://deno.land/x/xhr@0.1.0/mod.ts"
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
+if (!OPENAI_API_KEY) {
+  throw new Error('OPENAI_API_KEY environment variable not set')
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,6 +102,7 @@ serve(async (req) => {
   
   clientSocket.onclose = () => {
     console.log('Client disconnected')
+    clearInterval(pingInterval)
     openaiWS.close()
   }
   
@@ -102,6 +110,16 @@ serve(async (req) => {
     console.log('OpenAI disconnected')
     clientSocket.close()
   }
+
+  // Add this after creating the WebSocket connections
+  const pingInterval = setInterval(() => {
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.send(JSON.stringify({ type: 'ping' }));
+    }
+    if (openaiWS.readyState === WebSocket.OPEN) {
+      openaiWS.send(JSON.stringify({ type: 'ping' }));
+    }
+  }, 30000); // Send ping every 30 seconds
 
   return response
 })
