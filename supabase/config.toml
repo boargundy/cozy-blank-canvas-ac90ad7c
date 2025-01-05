@@ -1,2 +1,5 @@
+# Project ID from the Supabase project settings
+project_id = "florxlmkxjzferdcavht"
+
 [functions.realtime-chat]
 verify_jwt = false
