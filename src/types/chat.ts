@@ -3,4 +3,5 @@ export interface Message {
   content: string;
   sender: "user" | "ai";
   timestamp: Date;
+  type: "text" | "audio" | "function_call";
 }
