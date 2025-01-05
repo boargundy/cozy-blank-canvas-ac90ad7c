@@ -4,22 +4,16 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { AuthError, AuthApiError } from "@supabase/supabase-js";
+import { AuthError } from "@supabase/supabase-js";
 
 const getErrorMessage = (error: AuthError) => {
-  if (error instanceof AuthApiError) {
-    switch (error.status) {
-      case 400:
-        return 'Invalid email or password. Please check your credentials and try again.';
-      case 422:
-        return 'Invalid email format. Please enter a valid email address.';
-      case 429:
-        return 'Too many login attempts. Please try again later.';
-      default:
-        return error.message;
-    }
+  if (error.message.includes('Invalid login credentials')) {
+    return 'Invalid email or password. Please check your credentials and try again.';
   }
-  return 'An unexpected error occurred. Please try again.';
+  if (error.message.includes('Email not confirmed')) {
+    return 'Please verify your email address before signing in.';
+  }
+  return error.message;
 };
 
 const Auth = () => {
@@ -44,13 +38,6 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
-
-  const handleAuthError = async () => {
-    const { error } = await supabase.auth.getSession();
-    if (error) {
-      setErrorMessage(getErrorMessage(error));
-    }
-  };
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
@@ -85,6 +72,26 @@ const Auth = () => {
           }}
           providers={[]}
           redirectTo={window.location.origin}
+          localization={{
+            variables: {
+              sign_in: {
+                email_label: 'Email address',
+                password_label: 'Password',
+                button_label: 'Sign in',
+                loading_button_label: 'Signing in...',
+                social_provider_text: 'Sign in with {{provider}}',
+                link_text: 'Already have an account? Sign in'
+              },
+              sign_up: {
+                email_label: 'Email address',
+                password_label: 'Create a Password',
+                button_label: 'Sign up',
+                loading_button_label: 'Signing up...',
+                social_provider_text: 'Sign up with {{provider}}',
+                link_text: "Don't have an account? Sign up"
+              }
+            }
+          }}
         />
       </div>
     </div>
