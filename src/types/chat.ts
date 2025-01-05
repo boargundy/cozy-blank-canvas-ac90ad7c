@@ -1,7 +1,2 @@
-export interface Message {
-  id: number;
-  content: string;
-  sender: "user" | "ai";
-  timestamp: Date;
-  type: "text" | "audio" | "function_call";
-}
+// This file can be safely deleted if no other components depend on it
+export {};
