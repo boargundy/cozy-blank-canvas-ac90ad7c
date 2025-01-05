@@ -35,12 +35,16 @@ serve(async (req) => {
   // Connect to OpenAI's WebSocket with the correct endpoint and protocols
   console.log('Connecting to OpenAI WebSocket')
   const openaiWS = new WebSocket(
-    'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
-    ['realtime', `openai-insecure-api-key.${OPENAI_API_KEY}`, 'openai-beta.realtime-v1']
+    'wss://api.openai.com/v1/audio-streaming',
+    ['gpt-4-turbo-preview']
   )
 
   openaiWS.onopen = () => {
     console.log('Connected to OpenAI')
+    openaiWS.send(JSON.stringify({
+      type: 'auth',
+      authorization: `Bearer ${OPENAI_API_KEY}`
+    }))
   }
 
   // Track if we've sent the session configuration
@@ -56,21 +60,22 @@ serve(async (req) => {
       if (data.type === 'session.created' && !sessionConfigSent) {
         console.log('Sending Spanish tutor session configuration')
         const config = {
-          type: 'session.update',
-          session: {
-            modalities: ['text', 'audio'],
-            instructions: 'You are a Spanish language tutor. Help the student practice Spanish through conversation. Speak in Spanish but explain grammar concepts in English when needed. Be patient and encouraging. Keep your responses concise and focused on helping the student learn.',
-            voice: 'alloy',
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16',
-            input_audio_transcription: {
-              model: 'whisper-1'
-            },
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 1000
+          type: 'config',
+          settings: {
+            language: 'es',
+            model: 'gpt-4-turbo-preview',
+            temperature: 0.7,
+            system_message: 'You are a Spanish language tutor. Help the student practice Spanish through conversation. Speak in Spanish but explain grammar concepts in English when needed. Be patient and encouraging. Keep your responses concise and focused on helping the student learn.',
+            audio: {
+              input: {
+                format: 'webm',
+                sampleRate: 48000,
+                channels: 1
+              },
+              output: {
+                format: 'mp3',
+                voice: 'alloy'
+              }
             }
           }
         }
@@ -82,7 +87,13 @@ serve(async (req) => {
       // Send the audio data to OpenAI
       if (data.type === 'input_audio_buffer.append') {
         console.log('Forwarding audio data to OpenAI')
-        openaiWS.send(e.data)
+        // Convert the audio data to the correct format if needed
+        const audioData = {
+          type: 'audio',
+          data: data.buffer,
+          timestamp: Date.now()
+        }
+        openaiWS.send(JSON.stringify(audioData))
       }
     }
   }
@@ -97,8 +108,27 @@ serve(async (req) => {
   }
 
   // Handle errors and closures
-  clientSocket.onerror = (e) => console.error('Client socket error:', e)
-  openaiWS.onerror = (e) => console.error('OpenAI socket error:', e)
+  clientSocket.onerror = (e) => {
+    console.error('Client socket error:', e)
+    // Send error message to client
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.send(JSON.stringify({
+        type: 'error',
+        message: 'Connection error occurred'
+      }))
+    }
+  }
+
+  openaiWS.onerror = (e) => {
+    console.error('OpenAI socket error:', e)
+    // Send error message to client
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.send(JSON.stringify({
+        type: 'error',
+        message: 'OpenAI connection error'
+      }))
+    }
+  }
   
   clientSocket.onclose = () => {
     console.log('Client disconnected')
