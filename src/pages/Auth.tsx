@@ -54,10 +54,6 @@ const Auth = () => {
           }}
           providers={[]}
           redirectTo={window.location.origin}
-          onError={(error) => {
-            setErrorMessage("Invalid login credentials. Please try again.");
-            console.error("Auth error:", error);
-          }}
         />
       </div>
     </div>
