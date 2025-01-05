@@ -1,10 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+import { WebSocketClient } from "https://deno.land/x/websocket@v0.1.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,67 +8,63 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const upgrade = req.headers.get('upgrade') || '';
-    if (upgrade.toLowerCase() != 'websocket') {
-      return new Response('Expected websocket', { status: 400 });
-    }
-
+    // Upgrade the HTTP request to a WebSocket connection
     const { socket, response } = Deno.upgradeWebSocket(req);
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
-    // Get user from auth header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      socket.close(4000, 'Missing authorization header');
-      return response;
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not found');
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (error || !user) {
-      socket.close(4001, 'Unauthorized');
-      return response;
-    }
-
-    // Connect to OpenAI's WebSocket
-    const openAIWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01');
+    // Create WebSocket connection to OpenAI
+    const openAIWs = new WebSocketClient('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01');
     
-    openAIWs.onopen = () => {
+    openAIWs.on('open', () => {
       console.log('Connected to OpenAI WebSocket');
-    };
+    });
 
-    openAIWs.onmessage = (event) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(event.data);
+    // Forward messages from client to OpenAI
+    socket.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received from client:', data);
+        openAIWs.send(JSON.stringify({
+          ...data,
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+          },
+        }));
+      } catch (error) {
+        console.error('Error processing client message:', error);
       }
     };
 
-    socket.onmessage = (event) => {
-      if (openAIWs.readyState === WebSocket.OPEN) {
-        openAIWs.send(event.data);
+    // Forward messages from OpenAI to client
+    openAIWs.on('message', (message) => {
+      try {
+        console.log('Received from OpenAI:', message);
+        socket.send(message);
+      } catch (error) {
+        console.error('Error forwarding OpenAI message:', error);
       }
-    };
+    });
 
+    // Handle connection close
     socket.onclose = () => {
       console.log('Client disconnected');
       openAIWs.close();
     };
 
-    openAIWs.onclose = () => {
-      console.log('OpenAI connection closed');
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-    };
-
     return response;
-  } catch (err) {
-    console.error('Error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
+  } catch (error) {
+    console.error('Error in WebSocket handler:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
