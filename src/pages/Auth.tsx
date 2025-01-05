@@ -7,14 +7,14 @@ import { useEffect } from "react";
 import { AuthError, AuthApiError } from "@supabase/supabase-js";
 
 const getErrorMessage = (error: AuthError) => {
-  if (AuthApiError.isAuthApiError(error)) {
-    switch (error.code) {
-      case 'invalid_credentials':
+  if (error instanceof AuthApiError) {
+    switch (error.status) {
+      case 400:
         return 'Invalid email or password. Please check your credentials and try again.';
-      case 'user_not_found':
-        return 'No user found with these credentials.';
-      case 'email_not_confirmed':
-        return 'Please verify your email address before signing in.';
+      case 422:
+        return 'Invalid email format. Please enter a valid email address.';
+      case 429:
+        return 'Too many login attempts. Please try again later.';
       default:
         return error.message;
     }
@@ -34,7 +34,7 @@ const Auth = () => {
       if (event === 'SIGNED_OUT') {
         setErrorMessage("");
       }
-      if (event === 'USER_ERROR') {
+      if (event === 'USER_UPDATED') {
         const { error } = await supabase.auth.getSession();
         if (error) {
           setErrorMessage(getErrorMessage(error));
@@ -85,7 +85,6 @@ const Auth = () => {
           }}
           providers={[]}
           redirectTo={window.location.origin}
-          onError={handleAuthError}
         />
       </div>
     </div>
