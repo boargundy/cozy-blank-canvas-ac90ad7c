@@ -25,7 +25,7 @@ serve(async (req) => {
   console.log('Upgrading to WebSocket connection')
   const { socket: clientSocket, response } = Deno.upgradeWebSocket(req)
 
-  // Connect to OpenAI's WebSocket
+  // Connect to OpenAI's WebSocket with the correct endpoint
   console.log('Connecting to OpenAI WebSocket')
   const openaiWS = new WebSocket(
     'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
@@ -71,13 +71,21 @@ serve(async (req) => {
         sessionConfigSent = true;
       }
       
-      openaiWS.send(e.data)
+      // Send the audio data to OpenAI
+      if (data.type === 'input_audio_buffer.append') {
+        console.log('Forwarding audio data to OpenAI')
+        openaiWS.send(e.data)
+      }
     }
   }
 
   openaiWS.onmessage = (e) => {
     console.log('Received from OpenAI:', e.data)
-    clientSocket.send(e.data)
+    
+    // Forward all OpenAI responses to the client
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.send(e.data)
+    }
   }
 
   // Handle errors and closures
