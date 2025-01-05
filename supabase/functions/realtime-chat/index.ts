@@ -1,11 +1,12 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import "https://deno.land/x/xhr@0.1.0/mod.ts"
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
   const upgrade = req.headers.get('upgrade') || ''
@@ -18,11 +19,6 @@ serve(async (req) => {
   const jwt = url.searchParams.get('jwt')
   if (!jwt) {
     return new Response('Auth token not provided', { status: 403 })
-  }
-
-  const { error, data } = await supabase.auth.getUser(jwt)
-  if (error || !data.user) {
-    return new Response('Invalid token', { status: 403 })
   }
 
   const { socket: clientSocket, response } = Deno.upgradeWebSocket(req)
@@ -61,11 +57,13 @@ serve(async (req) => {
   // Relay messages between client and OpenAI
   clientSocket.onmessage = (e) => {
     if (openaiWS.readyState === 1) {
+      console.log('Sending to OpenAI:', e.data)
       openaiWS.send(e.data)
     }
   }
 
   openaiWS.onmessage = (e) => {
+    console.log('Received from OpenAI:', e.data)
     clientSocket.send(e.data)
   }
 

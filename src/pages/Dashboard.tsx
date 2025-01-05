@@ -4,99 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Plus, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-class AudioRecorder {
-  private stream: MediaStream | null = null;
-  private audioContext: AudioContext | null = null;
-  private processor: ScriptProcessorNode | null = null;
-  private source: MediaStreamAudioSourceNode | null = null;
-
-  constructor(private onAudioData: (audioData: Float32Array) => void) {}
-
-  async start() {
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 24000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      this.audioContext = new AudioContext({ sampleRate: 24000 });
-      this.source = this.audioContext.createMediaStreamSource(this.stream);
-      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-      this.processor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        this.onAudioData(new Float32Array(inputData));
-      };
-      this.source.connect(this.processor);
-      this.processor.connect(this.audioContext.destination);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      throw error;
-    }
-  }
-
-  stop() {
-    if (this.source) {
-      this.source.disconnect();
-      this.source = null;
-    }
-    if (this.processor) {
-      this.processor.disconnect();
-      this.processor = null;
-    }
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-      this.stream = null;
-    }
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
-  }
-}
-
-class AudioQueue {
-  private queue: Uint8Array[] = [];
-  private isPlaying = false;
-  private audioContext: AudioContext;
-
-  constructor(audioContext: AudioContext) {
-    this.audioContext = audioContext;
-  }
-
-  async addToQueue(audioData: Uint8Array) {
-    this.queue.push(audioData);
-    if (!this.isPlaying) {
-      await this.playNext();
-    }
-  }
-
-  private async playNext() {
-    if (this.queue.length === 0) {
-      this.isPlaying = false;
-      return;
-    }
-
-    this.isPlaying = true;
-    const audioData = this.queue.shift()!;
-
-    try {
-      const audioBuffer = await this.audioContext.decodeAudioData(audioData.buffer);
-      const source = this.audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(this.audioContext.destination);
-      source.onended = () => this.playNext();
-      source.start(0);
-    } catch (error) {
-      console.error('Error playing audio:', error);
-      this.playNext();
-    }
-  }
-}
+import { AudioRecorder } from "@/components/audio/AudioRecorder";
+import { AudioQueue } from "@/components/audio/AudioQueue";
+import { ChatMessage } from "@/components/chat/ChatMessage";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -141,7 +51,7 @@ const Dashboard = () => {
         throw chatError;
       }
 
-      // Initialize WebSocket connection
+      // Initialize WebSocket connection with JWT for authentication
       const ws = new WebSocket(
         `wss://florxlmkxjzferdcavht.functions.supabase.co/realtime-chat?jwt=${session.access_token}`
       );
@@ -156,6 +66,7 @@ const Dashboard = () => {
 
       ws.onmessage = async (event) => {
         const data = JSON.parse(event.data);
+        console.log('Received message:', data);
         
         if (data.type === 'response.audio.delta') {
           const binaryString = atob(data.delta);
@@ -276,16 +187,7 @@ const Dashboard = () => {
           <h2 className="text-2xl font-semibold mb-4">Conversation</h2>
           <div className="h-[300px] overflow-y-auto space-y-4">
             {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`p-3 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground ml-auto'
-                    : 'bg-muted'
-                } max-w-[80%] ${message.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
-              >
-                {message.content}
-              </div>
+              <ChatMessage key={index} role={message.role} content={message.content} />
             ))}
           </div>
         </div>
