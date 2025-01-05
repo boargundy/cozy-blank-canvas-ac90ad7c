@@ -6,25 +6,25 @@
 
 @layer base {
   :root {
-    --background: 330 100% 99%;
-    --foreground: 330 10% 10%;
-    --card: 330 100% 99%;
-    --card-foreground: 330 10% 10%;
-    --popover: 330 100% 99%;
-    --popover-foreground: 330 10% 10%;
-    --primary: 330 90% 65%;
-    --primary-foreground: 330 10% 98%;
-    --secondary: 330 30% 96%;
-    --secondary-foreground: 330 10% 10%;
-    --muted: 330 30% 96%;
-    --muted-foreground: 330 10% 40%;
-    --accent: 330 30% 96%;
-    --accent-foreground: 330 10% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 330 10% 98%;
-    --border: 330 20% 90%;
-    --input: 330 20% 90%;
-    --ring: 330 90% 65%;
+    --background: 50 100% 97%;    /* Light yellow background */
+    --foreground: 45 10% 10%;     /* Dark text for contrast */
+    --card: 50 100% 97%;          /* Same as background */
+    --card-foreground: 45 10% 10%;
+    --popover: 50 100% 97%;
+    --popover-foreground: 45 10% 10%;
+    --primary: 45 90% 45%;        /* Warm yellow */
+    --primary-foreground: 45 10% 98%;
+    --secondary: 45 30% 96%;      /* Soft yellow */
+    --secondary-foreground: 45 10% 10%;
+    --muted: 45 30% 96%;
+    --muted-foreground: 45 10% 40%;
+    --accent: 45 30% 96%;
+    --accent-foreground: 45 10% 10%;
+    --destructive: 0 84% 60%;     /* Keeping red for destructive actions */
+    --destructive-foreground: 45 10% 98%;
+    --border: 45 20% 90%;
+    --input: 45 20% 90%;
+    --ring: 45 90% 45%;
     --radius: 0.75rem;
   }
 }
@@ -40,5 +40,5 @@
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, #fff5f9 0%, #ffe6ef 100%);
+  background: linear-gradient(135deg, #fff8e1 0%, #ffd54f 100%);
 }
