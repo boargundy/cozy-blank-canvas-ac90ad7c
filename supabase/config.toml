@@ -1,2 +1,4 @@
+project_id = "florxlmkxjzferdcavht"
+
 [functions.realtime-chat]
 verify_jwt = true
