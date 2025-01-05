@@ -4,23 +4,53 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { AuthError, AuthApiError } from "@supabase/supabase-js";
+
+const getErrorMessage = (error: AuthError) => {
+  if (AuthApiError.isAuthApiError(error)) {
+    switch (error.code) {
+      case 'invalid_credentials':
+        return 'Invalid email or password. Please check your credentials and try again.';
+      case 'user_not_found':
+        return 'No user found with these credentials.';
+      case 'email_not_confirmed':
+        return 'Please verify your email address before signing in.';
+      default:
+        return error.message;
+    }
+  }
+  return 'An unexpected error occurred. Please try again.';
+};
 
 const Auth = () => {
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         navigate("/");
       }
-      if (event === 'USER_DELETED' || event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         setErrorMessage("");
+      }
+      if (event === 'USER_ERROR') {
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          setErrorMessage(getErrorMessage(error));
+        }
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const handleAuthError = async () => {
+    const { error } = await supabase.auth.getSession();
+    if (error) {
+      setErrorMessage(getErrorMessage(error));
+    }
+  };
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
@@ -55,10 +85,7 @@ const Auth = () => {
           }}
           providers={[]}
           redirectTo={window.location.origin}
-          onError={(error) => {
-            console.error('Auth error:', error);
-            setErrorMessage(error.message || 'An error occurred during authentication');
-          }}
+          onError={handleAuthError}
         />
       </div>
     </div>
