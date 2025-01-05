@@ -1,9 +1,11 @@
+import { useEffect, useState, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
-import { useState } from "react";
+import { Send, Mic, Square } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { AudioRecorder, encodeAudioForAPI } from "@/lib/audio";
 
 interface Message {
   id: number;
@@ -12,42 +14,165 @@ interface Message {
   timestamp: Date;
 }
 
-const dummyMessages: Message[] = [
-  {
-    id: 1,
-    content: "Hello! I'm your AI tutor. What would you like to learn about today?",
-    sender: "ai",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
-  },
-  {
-    id: 2,
-    content: "I'd like to learn about React hooks. Can you explain useState?",
-    sender: "user",
-    timestamp: new Date(Date.now() - 1000 * 60 * 4), // 4 minutes ago
-  },
-  {
-    id: 3,
-    content: "useState is a React Hook that lets you add state variables to your components. It returns an array with two values: the current state and a function to update it. Would you like to see an example?",
-    sender: "ai",
-    timestamp: new Date(Date.now() - 1000 * 60 * 3), // 3 minutes ago
-  },
-  {
-    id: 4,
-    content: "Yes, please show me an example!",
-    sender: "user",
-    timestamp: new Date(Date.now() - 1000 * 60 * 2), // 2 minutes ago
-  },
-  {
-    id: 5,
-    content: "Here's a simple example:\n\nconst [count, setCount] = useState(0);\n\nThis creates a state variable called 'count' initialized to 0, and a function 'setCount' to update it. You can use it like this:\n\n<button onClick={() => setCount(count + 1)}>Count is {count}</button>",
-    sender: "ai",
-    timestamp: new Date(Date.now() - 1000 * 60), // 1 minute ago
-  },
-];
+class AudioQueue {
+  private queue: Uint8Array[] = [];
+  private isPlaying = false;
+  private audioContext: AudioContext;
+
+  constructor() {
+    this.audioContext = new AudioContext({ sampleRate: 24000 });
+  }
+
+  async addToQueue(audioData: Uint8Array) {
+    this.queue.push(audioData);
+    if (!this.isPlaying) {
+      await this.playNext();
+    }
+  }
+
+  private async playNext() {
+    if (this.queue.length === 0) {
+      this.isPlaying = false;
+      return;
+    }
+
+    this.isPlaying = true;
+    const audioData = this.queue.shift()!;
+
+    try {
+      const audioBuffer = await this.audioContext.decodeAudioData(audioData.buffer);
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.audioContext.destination);
+      source.onended = () => this.playNext();
+      source.start(0);
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      this.playNext();
+    }
+  }
+}
 
 const ChatInterface = () => {
-  const [messages, setMessages] = useState<Message[]>(dummyMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState("");
+  const wsRef = useRef<WebSocket | null>(null);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  const audioQueueRef = useRef<AudioQueue | null>(null);
+
+  useEffect(() => {
+    audioQueueRef.current = new AudioQueue();
+    return () => {
+      wsRef.current?.close();
+    };
+  }, []);
+
+  const setupWebSocket = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const ws = new WebSocket(`wss://florxlmkxjzferdcavht.functions.supabase.co/realtime-chat`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('Connected to chat server');
+    };
+
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Received message:', data);
+
+      if (data.type === 'response.audio.delta') {
+        const binaryString = atob(data.delta);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        await audioQueueRef.current?.addToQueue(bytes);
+      } else if (data.type === 'response.audio_transcript.delta') {
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage && lastMessage.sender === 'ai') {
+            return [
+              ...prev.slice(0, -1),
+              { ...lastMessage, content: lastMessage.content + data.delta }
+            ];
+          } else {
+            return [
+              ...prev,
+              {
+                id: prev.length + 1,
+                content: data.delta,
+                sender: 'ai',
+                timestamp: new Date()
+              }
+            ];
+          }
+        });
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('Disconnected from chat server');
+    };
+
+    return ws;
+  };
+
+  const startRecording = async () => {
+    try {
+      const ws = await setupWebSocket();
+      if (!ws) return;
+
+      audioRecorderRef.current = new AudioRecorder((audioData: Float32Array) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const base64Audio = encodeAudioForAPI(audioData);
+          ws.send(JSON.stringify({
+            type: 'input_audio_buffer.append',
+            audio: base64Audio
+          }));
+        }
+      });
+
+      await audioRecorderRef.current.start();
+      setIsRecording(true);
+      setCurrentTranscript("");
+
+      // Send session configuration
+      ws.send(JSON.stringify({
+        type: 'session.update',
+        session: {
+          modalities: ["text", "audio"],
+          instructions: "You are a helpful AI assistant. Your responses should be clear and concise.",
+          voice: "alloy",
+          input_audio_format: "pcm16",
+          output_audio_format: "pcm16",
+          input_audio_transcription: {
+            model: "whisper-1"
+          },
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 1000
+          }
+        }
+      }));
+    } catch (error) {
+      console.error('Error starting recording:', error);
+    }
+  };
+
+  const stopRecording = async () => {
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.stop();
+      audioRecorderRef.current = null;
+    }
+    setIsRecording(false);
+    wsRef.current?.close();
+  };
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
@@ -105,6 +230,13 @@ const ChatInterface = () => {
               </div>
             </div>
           ))}
+          {currentTranscript && (
+            <div className="flex justify-end">
+              <div className="bg-muted rounded-lg p-4 max-w-[80%]">
+                <p className="italic">{currentTranscript}</p>
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
       
@@ -123,6 +255,12 @@ const ChatInterface = () => {
           />
           <Button onClick={handleSendMessage}>
             <Send className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={isRecording ? "destructive" : "default"}
+            onClick={isRecording ? stopRecording : startRecording}
+          >
+            {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
         </div>
       </div>
