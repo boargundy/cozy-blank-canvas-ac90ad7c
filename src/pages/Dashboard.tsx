@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ChatInterface from "@/components/ChatInterface";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -18,12 +20,16 @@ const Dashboard = () => {
   }, [navigate]);
 
   const handleNewChat = () => {
+    setShowChat(true);
     toast({
       title: "Starting new chat",
       description: "Preparing your new conversation...",
     });
-    // Here you would typically create a new chat and redirect to it
   };
+
+  if (showChat) {
+    return <ChatInterface />;
+  }
 
   return (
     <div className="container mx-auto p-6">
