@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { WebSocketClient } from "https://deno.land/x/websocket@v0.1.4/mod.ts";
+import { WebSocketClient, StandardWebSocketClient } from "https://deno.land/x/websocket@v0.1.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,34 +14,55 @@ serve(async (req) => {
   }
 
   try {
+    // Check if it's a WebSocket upgrade request
+    const upgrade = req.headers.get('upgrade') || '';
+    if (upgrade.toLowerCase() !== 'websocket') {
+      return new Response('Expected WebSocket upgrade', { 
+        status: 426,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // Upgrade the HTTP request to a WebSocket connection
     const { socket, response } = Deno.upgradeWebSocket(req);
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
     if (!openAIApiKey) {
-      throw new Error('OpenAI API key not found');
+      socket.close(1011, 'OpenAI API key not found');
+      return response;
     }
 
+    console.log('Creating OpenAI WebSocket connection...');
+
     // Create WebSocket connection to OpenAI
-    const openAIWs = new WebSocketClient('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01');
-    
-    openAIWs.on('open', () => {
-      console.log('Connected to OpenAI WebSocket');
-    });
+    const openAIWs = new StandardWebSocketClient(
+      'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
+      {
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+        },
+      }
+    );
 
     // Forward messages from client to OpenAI
     socket.onmessage = async (event) => {
       try {
-        const data = JSON.parse(event.data);
-        console.log('Received from client:', data);
-        openAIWs.send(JSON.stringify({
-          ...data,
-          headers: {
-            'Authorization': `Bearer ${openAIApiKey}`,
-          },
-        }));
+        if (openAIWs.readyState === openAIWs.OPEN) {
+          console.log('Forwarding message to OpenAI:', event.data);
+          openAIWs.send(event.data);
+        } else {
+          console.error('OpenAI WebSocket not ready:', openAIWs.readyState);
+          socket.send(JSON.stringify({
+            type: 'error',
+            message: 'OpenAI connection not ready'
+          }));
+        }
       } catch (error) {
         console.error('Error processing client message:', error);
+        socket.send(JSON.stringify({
+          type: 'error',
+          message: error.message
+        }));
       }
     };
 
@@ -55,11 +76,29 @@ serve(async (req) => {
       }
     });
 
+    // Handle WebSocket errors
+    openAIWs.on('error', (error) => {
+      console.error('OpenAI WebSocket error:', error);
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'OpenAI connection error'
+      }));
+    });
+
+    socket.onerror = (error) => {
+      console.error('Client WebSocket error:', error);
+    };
+
     // Handle connection close
     socket.onclose = () => {
       console.log('Client disconnected');
       openAIWs.close();
     };
+
+    openAIWs.on('close', () => {
+      console.log('OpenAI connection closed');
+      socket.close();
+    });
 
     return response;
   } catch (error) {
