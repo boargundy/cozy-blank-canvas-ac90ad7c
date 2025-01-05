@@ -11,8 +11,14 @@ const Auth = () => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) navigate("/");
+      if (event === 'SIGNED_IN' && session) {
+        navigate("/");
+      }
+      if (event === 'USER_DELETED' || event === 'SIGNED_OUT') {
+        setErrorMessage("");
+      }
     });
+
     return () => subscription.unsubscribe();
   }, [navigate]);
 
@@ -22,9 +28,9 @@ const Auth = () => {
         <h1 className="text-2xl font-bold text-center mb-6">Welcome</h1>
         
         {errorMessage && (
-          <p className="text-red-500 text-center mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
             {errorMessage}
-          </p>
+          </div>
         )}
 
         <SupabaseAuth
@@ -49,6 +55,10 @@ const Auth = () => {
           }}
           providers={[]}
           redirectTo={window.location.origin}
+          onError={(error) => {
+            console.error('Auth error:', error);
+            setErrorMessage(error.message || 'An error occurred during authentication');
+          }}
         />
       </div>
     </div>
