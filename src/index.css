@@ -6,25 +6,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 41 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 41 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 41 84% 4.9%;
-    --primary: 41 70% 50%;
-    --primary-foreground: 41 40% 98%;
-    --secondary: 41 40% 96.1%;
-    --secondary-foreground: 41 47.4% 11.2%;
-    --muted: 41 40% 96.1%;
-    --muted-foreground: 41 16.3% 46.9%;
-    --accent: 41 40% 96.1%;
-    --accent-foreground: 41 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 41 40% 98%;
-    --border: 41 31.8% 91.4%;
-    --input: 41 31.8% 91.4%;
-    --ring: 41 70% 50%;
+    --background: 330 100% 99%;
+    --foreground: 330 10% 10%;
+    --card: 330 100% 99%;
+    --card-foreground: 330 10% 10%;
+    --popover: 330 100% 99%;
+    --popover-foreground: 330 10% 10%;
+    --primary: 330 90% 65%;
+    --primary-foreground: 330 10% 98%;
+    --secondary: 330 30% 96%;
+    --secondary-foreground: 330 10% 10%;
+    --muted: 330 30% 96%;
+    --muted-foreground: 330 10% 40%;
+    --accent: 330 30% 96%;
+    --accent-foreground: 330 10% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 330 10% 98%;
+    --border: 330 20% 90%;
+    --input: 330 20% 90%;
+    --ring: 330 90% 65%;
     --radius: 0.75rem;
   }
 }
@@ -40,5 +40,5 @@
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, #f5f7fa 0%, #fff2d1 100%);
+  background: linear-gradient(135deg, #fff5f9 0%, #ffe6ef 100%);
 }
