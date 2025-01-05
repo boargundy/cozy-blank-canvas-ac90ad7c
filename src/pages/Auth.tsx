@@ -39,6 +39,13 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const handleAuthError = async () => {
+    const { error } = await supabase.auth.getSession();
+    if (error) {
+      setErrorMessage(getErrorMessage(error));
+    }
+  };
+
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6">
@@ -72,6 +79,7 @@ const Auth = () => {
           }}
           providers={[]}
           redirectTo={window.location.origin}
+          onError={handleAuthError}
           localization={{
             variables: {
               sign_in: {
