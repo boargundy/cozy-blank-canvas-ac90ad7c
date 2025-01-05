@@ -34,33 +34,43 @@ serve(async (req) => {
 
   openaiWS.onopen = () => {
     console.log('Connected to OpenAI')
-    // Configure the session for Spanish tutoring
-    const config = {
-      type: 'session.update',
-      session: {
-        modalities: ['text', 'audio'],
-        instructions: 'You are a Spanish language tutor. Help the student practice Spanish through conversation. Speak in Spanish but explain grammar concepts in English when needed. Be patient and encouraging.',
-        voice: 'alloy',
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: 'whisper-1'
-        },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 1000
-        }
-      }
-    }
-    openaiWS.send(JSON.stringify(config))
   }
+
+  // Track if we've sent the session configuration
+  let sessionConfigSent = false;
 
   // Relay messages between client and OpenAI
   clientSocket.onmessage = (e) => {
     if (openaiWS.readyState === 1) {
-      console.log('Sending to OpenAI:', e.data)
+      console.log('Received from client:', e.data)
+      const data = JSON.parse(e.data);
+      
+      // If we receive session.created and haven't sent config yet, send it
+      if (data.type === 'session.created' && !sessionConfigSent) {
+        console.log('Sending session configuration')
+        const config = {
+          type: 'session.update',
+          session: {
+            modalities: ['text', 'audio'],
+            instructions: 'You are a Spanish language tutor. Help the student practice Spanish through conversation. Speak in Spanish but explain grammar concepts in English when needed. Be patient and encouraging.',
+            voice: 'alloy',
+            input_audio_format: 'pcm16',
+            output_audio_format: 'pcm16',
+            input_audio_transcription: {
+              model: 'whisper-1'
+            },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1000
+            }
+          }
+        }
+        openaiWS.send(JSON.stringify(config))
+        sessionConfigSent = true;
+      }
+      
       openaiWS.send(e.data)
     }
   }
