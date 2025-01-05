@@ -57,7 +57,8 @@ const ChatContainer = () => {
                   id: prev.length + 1,
                   content: data.delta,
                   sender: 'ai',
-                  timestamp: new Date()
+                  timestamp: new Date(),
+                  type: 'audio'
                 }
               ];
             }
@@ -79,7 +80,6 @@ const ChatContainer = () => {
       setIsRecording(true);
       setCurrentTranscript("");
 
-      // Send session configuration after connection is established
       ws.addEventListener('open', () => {
         ws.send(JSON.stringify({
           type: 'session.update',
@@ -123,6 +123,7 @@ const ChatContainer = () => {
       content: newMessage,
       sender: "user",
       timestamp: new Date(),
+      type: "text"
     };
     
     setMessages([...messages, message]);
