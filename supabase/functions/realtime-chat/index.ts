@@ -102,7 +102,6 @@ serve(async (req) => {
   
   clientSocket.onclose = () => {
     console.log('Client disconnected')
-    clearInterval(pingInterval)
     openaiWS.close()
   }
   
@@ -110,16 +109,6 @@ serve(async (req) => {
     console.log('OpenAI disconnected')
     clientSocket.close()
   }
-
-  // Add this after creating the WebSocket connections
-  const pingInterval = setInterval(() => {
-    if (clientSocket.readyState === WebSocket.OPEN) {
-      clientSocket.send(JSON.stringify({ type: 'ping' }));
-    }
-    if (openaiWS.readyState === WebSocket.OPEN) {
-      openaiWS.send(JSON.stringify({ type: 'ping' }));
-    }
-  }, 30000); // Send ping every 30 seconds
 
   return response
 })
