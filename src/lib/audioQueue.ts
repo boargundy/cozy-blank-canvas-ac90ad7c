@@ -8,6 +8,7 @@ export class AudioQueue {
   }
 
   async addToQueue(audioData: Uint8Array) {
+    console.log('Adding audio chunk to queue');
     this.queue.push(audioData);
     if (!this.isPlaying) {
       await this.playNext();
@@ -16,6 +17,7 @@ export class AudioQueue {
 
   private async playNext() {
     if (this.queue.length === 0) {
+      console.log('Queue empty, stopping playback');
       this.isPlaying = false;
       return;
     }
@@ -25,14 +27,20 @@ export class AudioQueue {
 
     try {
       const audioBuffer = await this.audioContext.decodeAudioData(audioData.buffer);
+      console.log('Playing audio chunk');
+      
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.audioContext.destination);
-      source.onended = () => this.playNext();
+      
+      source.onended = () => {
+        console.log('Audio chunk finished playing');
+        this.playNext();
+      };
       source.start(0);
     } catch (error) {
-      console.error('Error playing audio:', error);
-      this.playNext();
+      console.error('Error playing audio chunk:', error);
+      this.playNext(); // Continue with next segment even if current fails
     }
   }
 }

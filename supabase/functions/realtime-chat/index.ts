@@ -73,11 +73,40 @@ serve(async (req) => {
       }
     );
 
+    let sessionCreated = false;
+
     // Forward messages from client to OpenAI
     socket.onmessage = async (event) => {
       try {
         if (openAIWs.readyState === openAIWs.OPEN) {
           console.log('Forwarding message to OpenAI:', event.data);
+          
+          const data = JSON.parse(event.data);
+          
+          // If we receive session.created, send the session configuration
+          if (data.type === 'session.created' && !sessionCreated) {
+            sessionCreated = true;
+            openAIWs.send(JSON.stringify({
+              type: 'session.update',
+              session: {
+                modalities: ["text", "audio"],
+                instructions: "You are a helpful AI assistant.",
+                voice: "alloy",
+                input_audio_format: "pcm16",
+                output_audio_format: "pcm16",
+                input_audio_transcription: {
+                  model: "whisper-1"
+                },
+                turn_detection: {
+                  type: "server_vad",
+                  threshold: 0.5,
+                  prefix_padding_ms: 300,
+                  silence_duration_ms: 1000
+                }
+              }
+            }));
+          }
+          
           openAIWs.send(event.data);
         } else {
           console.error('OpenAI WebSocket not ready:', openAIWs.readyState);

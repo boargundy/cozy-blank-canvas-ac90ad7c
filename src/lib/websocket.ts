@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const setupWebSocketConnection = async () => {
+  console.log('Setting up WebSocket connection...');
+  
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
     console.error('No active session found');
@@ -8,13 +10,13 @@ export const setupWebSocketConnection = async () => {
   }
 
   try {
-    console.log('Attempting to connect to WebSocket server...');
+    console.log('Creating WebSocket connection with authentication...');
     const ws = new WebSocket(
       `wss://florxlmkxjzferdcavht.functions.supabase.co/functions/v1/realtime-chat?jwt=${session.access_token}`
     );
     
     ws.onopen = () => {
-      console.log('Connected to chat server');
+      console.log('WebSocket connection established');
     };
 
     ws.onerror = (error) => {
@@ -22,7 +24,7 @@ export const setupWebSocketConnection = async () => {
     };
 
     ws.onclose = (event) => {
-      console.log('Disconnected from chat server:', event.code, event.reason);
+      console.log('WebSocket connection closed:', event.code, event.reason);
     };
 
     return ws;
