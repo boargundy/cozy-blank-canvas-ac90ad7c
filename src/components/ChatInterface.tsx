@@ -64,7 +64,7 @@ const ChatInterface = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-[calc(100vh-64px)]">
       <div className="p-4 border-b">
         <h1 className="text-2xl font-bold">Chat with AI Tutor</h1>
       </div>
@@ -108,7 +108,7 @@ const ChatInterface = () => {
         </div>
       </ScrollArea>
       
-      <div className="p-4 border-t">
+      <div className="p-4 border-t mt-auto">
         <div className="flex gap-2">
           <Input
             value={newMessage}
