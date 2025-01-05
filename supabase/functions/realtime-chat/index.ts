@@ -18,12 +18,15 @@ serve(async (req) => {
   const url = new URL(req.url)
   const jwt = url.searchParams.get('jwt')
   if (!jwt) {
+    console.error('Auth token not provided')
     return new Response('Auth token not provided', { status: 403 })
   }
 
+  console.log('Upgrading to WebSocket connection')
   const { socket: clientSocket, response } = Deno.upgradeWebSocket(req)
 
   // Connect to OpenAI's WebSocket
+  console.log('Connecting to OpenAI WebSocket')
   const openaiWS = new WebSocket(
     'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
     ['realtime', `openai-insecure-api-key.${OPENAI_API_KEY}`, 'openai-beta.realtime-v1']

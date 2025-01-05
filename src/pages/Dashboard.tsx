@@ -84,7 +84,21 @@ const Dashboard = () => {
           
           await audioQueueRef.current.addToQueue(bytes);
         } else if (data.type === 'response.audio_transcript.delta') {
-          setMessages(prev => [...prev, { role: 'assistant', content: data.delta }]);
+          setMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+              // Update the last message's content
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1] = {
+                ...lastMessage,
+                content: lastMessage.content + data.delta
+              };
+              return newMessages;
+            } else {
+              // Create a new message
+              return [...prev, { role: 'assistant', content: data.delta }];
+            }
+          });
         }
       };
 
