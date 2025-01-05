@@ -25,7 +25,7 @@ serve(async (req) => {
   console.log('Upgrading to WebSocket connection')
   const { socket: clientSocket, response } = Deno.upgradeWebSocket(req)
 
-  // Connect to OpenAI's WebSocket with the correct endpoint
+  // Connect to OpenAI's WebSocket with the correct endpoint and protocols
   console.log('Connecting to OpenAI WebSocket')
   const openaiWS = new WebSocket(
     'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
@@ -47,12 +47,12 @@ serve(async (req) => {
       
       // If we receive session.created and haven't sent config yet, send it
       if (data.type === 'session.created' && !sessionConfigSent) {
-        console.log('Sending session configuration')
+        console.log('Sending Spanish tutor session configuration')
         const config = {
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
-            instructions: 'You are a Spanish language tutor. Help the student practice Spanish through conversation. Speak in Spanish but explain grammar concepts in English when needed. Be patient and encouraging.',
+            instructions: 'You are a Spanish language tutor. Help the student practice Spanish through conversation. Speak in Spanish but explain grammar concepts in English when needed. Be patient and encouraging. Keep your responses concise and focused on helping the student learn.',
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
@@ -69,6 +69,7 @@ serve(async (req) => {
         }
         openaiWS.send(JSON.stringify(config))
         sessionConfigSent = true;
+        console.log('Session configuration sent')
       }
       
       // Send the audio data to OpenAI
