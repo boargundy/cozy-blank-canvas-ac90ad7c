@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Plus, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AudioRecorder } from "@/components/audio/AudioRecorder";
 import { AudioQueue } from "@/components/audio/AudioQueue";
-import { ChatMessage } from "@/components/chat/ChatMessage";
+import { RecordingControls } from "@/components/chat/RecordingControls";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -173,38 +172,11 @@ const Dashboard = () => {
       <h1 className="text-3xl font-bold mb-8">Spanish Tutor</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-lg border bg-card text-card-foreground shadow-sm">
-          <h2 className="text-2xl font-semibold mb-4">Start Conversation</h2>
-          <p className="text-muted-foreground mb-4">
-            Practice Spanish with an AI tutor using voice chat.
-          </p>
-          <Button 
-            onClick={toggleRecording} 
-            className="w-full"
-            variant={isRecording ? "destructive" : "default"}
-          >
-            {isRecording ? (
-              <>
-                <MicOff className="mr-2 h-4 w-4" />
-                Stop Recording
-              </>
-            ) : (
-              <>
-                <Mic className="mr-2 h-4 w-4" />
-                Start Recording
-              </>
-            )}
-          </Button>
-        </div>
-
-        <div className="p-6 rounded-lg border bg-card text-card-foreground shadow-sm">
-          <h2 className="text-2xl font-semibold mb-4">Conversation</h2>
-          <div className="h-[300px] overflow-y-auto space-y-4">
-            {messages.map((message, index) => (
-              <ChatMessage key={index} role={message.role} content={message.content} />
-            ))}
-          </div>
-        </div>
+        <RecordingControls 
+          isRecording={isRecording}
+          onToggleRecording={toggleRecording}
+        />
+        <ChatPanel messages={messages} />
       </div>
     </div>
   );
