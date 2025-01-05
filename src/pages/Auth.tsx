@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const [view, setView] = useState<"sign_in" | "sign_up">("sign_in");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -15,30 +17,23 @@ const Auth = () => {
         navigate("/");
       }
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold text-center mb-2">Welcome</h1>
-        <div className="flex gap-4 justify-center mb-6">
-          <Button 
-            variant={view === "sign_in" ? "default" : "outline"}
-            onClick={() => setView("sign_in")}
-          >
-            Sign In
-          </Button>
-          <Button 
-            variant={view === "sign_up" ? "default" : "outline"}
-            onClick={() => setView("sign_up")}
-          >
-            Sign Up
-          </Button>
-        </div>
-        <SupabaseAuth 
-          supabaseClient={supabase} 
+        <h1 className="text-2xl font-bold text-center mb-6">Welcome</h1>
+        {errorMessage && (
+          <Alert variant="destructive" className="mb-4">
+            <ExclamationTriangleIcon className="h-4 w-4" />
+            <AlertDescription>
+              {errorMessage}
+            </AlertDescription>
+          </Alert>
+        )}
+        <SupabaseAuth
+          supabaseClient={supabase}
           appearance={{
             theme: ThemeSupa,
             style: {
@@ -58,8 +53,11 @@ const Auth = () => {
             },
           }}
           providers={[]}
-          view={view}
           redirectTo={window.location.origin}
+          onError={(error) => {
+            setErrorMessage("Invalid login credentials. Please try again.");
+            console.error("Auth error:", error);
+          }}
         />
       </div>
     </div>
