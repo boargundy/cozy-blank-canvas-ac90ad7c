@@ -24,10 +24,11 @@ serve(async (req) => {
       });
     }
 
-    // Verify authentication
+    // Get JWT token from query params
     const url = new URL(req.url);
     const jwt = url.searchParams.get('jwt');
     if (!jwt) {
+      console.error('No JWT token provided');
       return new Response('Authentication required', { 
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -55,6 +56,7 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
     if (!openAIApiKey) {
+      console.error('OpenAI API key not found');
       socket.close(1011, 'OpenAI API key not found');
       return response;
     }

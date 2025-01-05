@@ -8,7 +8,7 @@ export const setupWebSocketConnection = async () => {
   }
 
   try {
-    // Include the JWT token as a query parameter
+    console.log('Attempting to connect to WebSocket server...');
     const ws = new WebSocket(
       `wss://florxlmkxjzferdcavht.functions.supabase.co/functions/v1/realtime-chat?jwt=${session.access_token}`
     );
