@@ -8,7 +8,7 @@ import { AuthError, AuthApiError } from "@supabase/supabase-js";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const getErrorMessage = (error: AuthError) => {
-  if (AuthApiError.isAuthApiError(error)) {
+  if (error instanceof AuthApiError) {
     // Handle API errors using error.code
     switch (error.code) {
       case 'invalid_credentials':
@@ -59,17 +59,6 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
-
-  const handleSignIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setErrorMessage(getErrorMessage(error));
-    }
-  };
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
