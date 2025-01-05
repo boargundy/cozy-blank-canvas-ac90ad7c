@@ -8,7 +8,10 @@ export const setupWebSocketConnection = async () => {
   }
 
   try {
-    const ws = new WebSocket(`wss://florxlmkxjzferdcavht.functions.supabase.co/functions/v1/realtime-chat`);
+    // Include the JWT token as a query parameter
+    const ws = new WebSocket(
+      `wss://florxlmkxjzferdcavht.functions.supabase.co/functions/v1/realtime-chat?jwt=${session.access_token}`
+    );
     
     ws.onopen = () => {
       console.log('Connected to chat server');
